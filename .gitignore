@@ -1,0 +1,6 @@
+.venv/
+models/
+uploads/
+src-ref/
+__pycache__/
+*.pyc

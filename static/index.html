@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gemma-stt · transcrição rápida</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1><span class="logo">◈</span> gemma-stt</h1>
+    <div class="sub">faster-whisper · on-device · pt-BR e outros idiomas</div>
+  </header>
+
+  <section id="picker" class="card drop" tabindex="0">
+    <input type="file" id="file" accept="audio/*,video/*" hidden>
+    <div class="drop-hint">
+      <div class="big">Solte um arquivo de áudio</div>
+      <div class="muted">ou <button id="pick" class="linkbtn">escolha um arquivo</button> · also pode colar um caminho (D:\..)</div>
+    </div>
+    <div class="pathrow">
+      <input id="pathInput" type="text" placeholder="C:\…\audio.mp3 ou D:\…\aula.mkv">
+      <button id="go" class="primary">Transcrever</button>
+    </div>
+  </section>
+
+  <section id="progressCard" class="card hidden">
+    <div class="prow">
+      <div id="pfile" class="ellipsis"></div>
+      <div id="pstate" class="muted"></div>
+    </div>
+    <div class="bar"><div id="pbar"></div></div>
+    <div id="pmsg" class="muted small"></div>
+  </section>
+
+  <section id="transcriptCard" class="card hidden">
+    <div class="thead">
+      <h2 id="ttitle">Transcrição</h2>
+      <div class="muted small" id="tstats"></div>
+      <div class="spacer"></div>
+      <audio id="player" controls src=""></audio>
+      <button id="btnCopy" class="ghost" title="Copiar texto">copiar</button>
+    </div>
+    <div id="transcript"></div>
+  </section>
+
+  <section id="searchCard" class="card hidden">
+    <h2>Busca semântica</h2>
+    <div class="srow">
+      <input id="q" type="search" placeholder="pergunte algo que foi falado… (ex.: o que ele disse sobre preço?)">
+      <button id="searchBtn" class="primary">Buscar</button>
+    </div>
+    <div id="results" class="results"></div>
+  </section>
+
+  <footer class="muted small">
+    faster-whisper (large-v3-turbo, MIT) · busca semântica:
+    EmbeddingGemma 2 (multilíngue, Apache-2.0) · todo o áudio fica no seu computador
+  </footer>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

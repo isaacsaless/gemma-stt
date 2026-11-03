@@ -1,0 +1,10 @@
+torch
+transformers==5.19.0
+faster-whisper
+numpy
+fastapi
+uvicorn[standard]
+soundfile
+imageio-ffmpeg
+huggingface_hub
+python-multipart
