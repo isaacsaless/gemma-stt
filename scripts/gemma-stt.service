@@ -1,0 +1,18 @@
+# systemd unit for gemma-stt — install with:
+#   sudo cp scripts/gemma-stt.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#   sudo systemctl enable --now gemma-stt
+[Unit]
+Description=gemma-stt (faster-whisper + semantic search)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/gemma-stt
+Environment=HOST=127.0.0.1
+Environment=PORT=8425
+ExecStart=/opt/gemma-stt/.venv/bin/python server.py
+Restart=always
+RestartSec=5
+MemoryMax=3200M
+
+[Install]
+WantedBy=multi-user.target

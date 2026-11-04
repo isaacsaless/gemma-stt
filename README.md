@@ -73,15 +73,22 @@ Open **http://localhost:8425**, drop an audio file, and search the transcript.
 
 ## Running on a VPS
 
-The server binds `0.0.0.0:8425` and has **no authentication** — don't expose it raw
-to the internet. Options:
+The server has **one shared password** set by `APP_PASSWORD` (env var or a `.env`
+file next to `server.py`). It refuses to start without it. Login issues an
+HMAC-signed HttpOnly session cookie; attempts are throttled. There is no
+authentication bypass route — upper endpoints (`/api/*`, uploads, audio, exports)
+are protected like the UI.
 
-- **SSH tunnel (simplest):** keep the port closed, connect with
-  `ssh -L 8425:localhost:8425 user@your-vps` and open the same localhost URL.
-- Put it behind an authenticating reverse proxy if you need to share the URL.
+On the server, bind only to loopback (`HOST=127.0.0.1`) and front it with an
+authenticating proxy or a Cloudflare Tunnel. `scripts/gemma-stt.service` ships a
+systemd unit that does exactly this:
 
-No systemd service file is bundled; `python server.py` under tmux/screen or a small
-unit file works.
+```bash
+./scripts/download_models.sh                                 # search weights
+printf 'APP_PASSWORD=sua-senha-forte\n' > .env               # shared login password
+sudo cp scripts/gemma-stt.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now gemma-stt
+```
 
 ## HTTP API
 
