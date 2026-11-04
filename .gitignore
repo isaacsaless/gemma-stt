@@ -4,3 +4,5 @@ uploads/
 src-ref/
 __pycache__/
 *.pyc
+.env
+data/

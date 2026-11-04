@@ -37,6 +37,16 @@ async function uploadFile(f) {
   watch(j.id, f.name);
 }
 
+/* redirect to /login on any 401 (session expired / not logged in) */
+(() => {
+  const _f = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const r = await _f(input, init);
+    if (r && r.status === 401) location.href = "/login?next=" + encodeURIComponent(location.pathname);
+    return r;
+  };
+})();
+
 /* ---------- progress (SSE) ---------- */
 const progressCard = $("#progressCard");
 const msgs = { "áudio carregado": "áudio" };

@@ -5,18 +5,21 @@ Run: python server.py  (then open http://localhost:8425)
 """
 from __future__ import annotations
 
+import os
 import threading
 import time
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
+from stt import auth, auth_mw
+from stt.auth_mw import AuthMiddleware
 from stt.search import TextIndexer
 from stt.transcribe import Engine, clear_gpu
 ROOT = Path(__file__).parent
@@ -24,7 +27,30 @@ MODEL_DIR = ROOT / "models" / "embeddinggemma-2"
 UPLOAD_DIR = ROOT / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+
+def _load_dotenv() -> None:
+    f = ROOT / ".env"
+    if not f.exists():
+        return
+    for line in f.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip())
+
+
+_load_dotenv()
+
+AUTH_PASSWORD = os.environ.get("APP_PASSWORD")
+if not AUTH_PASSWORD:
+    raise SystemExit(
+        "\n  APP_PASSWORD não definido: defina a senha em APP_PASSWORD "
+        "(variável de ambiente) ou num arquivo .env junto ao server.py\n"
+    )
+auth.init_auth(AUTH_PASSWORD, ROOT / "data")
+
 app = FastAPI(title="gemma-stt")
+app.add_middleware(AuthMiddleware)
 _lock = threading.Lock()  # one GPU job at a time
 
 
@@ -196,13 +222,52 @@ async def export(job_id: str, req: ConcatReq):
     return StreamingResponse(iter([txt]), media_type="text/plain")
 
 
+def _safe_next(nxt: str) -> str:
+    return nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_get(request: Request):
+    return auth_mw.LOGIN_PAGE.replace("@ERROR@", "").replace("@NEXT@", _safe_next(request.query_params.get("next", "/")))
+
+
+@app.post("/login")
+async def login_post(request: Request, password: str = Form(""), next: str = Form("/")):
+    if not auth.check_password(password):
+        left = auth.attempts_left()
+        msg = f"senha errada — {left} tentativa{'s' if left != 1 else ''} restante{'s' if left != 1 else ''} nesta janela" if left else "muitas tentativas — aguarde 10 minutos"
+        page = auth_mw.LOGIN_PAGE.replace("@ERROR@", msg).replace("@NEXT@", _safe_next(next))
+        return HTMLResponse(page, status_code=401)
+    cookie, ttl = auth.new_session()
+    resp = RedirectResponse(_safe_next(next), status_code=303)
+    resp.set_cookie(
+        auth.COOKIE_NAME, cookie, max_age=ttl, httponly=True, samesite="lax", path="/",
+        secure=request.headers.get("x-forwarded-proto") == "https",
+    )
+    return resp
+
+
+@app.get("/logout")
+async def logout():
+    resp = RedirectResponse("/login", status_code=302)
+    resp.delete_cookie(auth.COOKIE_NAME, path="/")
+    return resp
+
+
 app.mount("/", StaticFiles(directory=str(ROOT / "static"), html=True), name="static")
 
 
 def main():
     import uvicorn
-    print("\n  gemma-stt rodando: http://localhost:8425\n")
-    uvicorn.run(app, host="0.0.0.0", port=8425, log_level="warning")
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "8425"))
+    print(f"\n  gemma-stt rodando: http://{host}:{port}\n")
+    uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":
